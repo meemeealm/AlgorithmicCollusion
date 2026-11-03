@@ -59,8 +59,13 @@ function evaluate_population(cfg::SimulationConfig, pop::Population; experiment:
             sy = synchrony_test(h; window = window, n_perm = n_perm, rng = Xoshiro(s))
             dv = deviation_probe(agents, rng, p, h; horizon = horizon)
             row = merge(row, (; sync_p = sy.p_value, sync_null_mean = sy.null_mean,
-                                dev_possible = dv.possible, dev_depth = dv.depth,
-                                dev_final_gap = dv.final_gap, dev_reversion = dv.reversion))
+                                dev_possible = dv.possible,
+                                dev_gap_early = dv.gap_early, dev_gap_late = dv.gap_late,
+                                dev_reversion = dv.reversion,
+                                plc_gap_early = dv.plc_gap_early, plc_gap_late = dv.plc_gap_late,
+                                plc_reversion = dv.plc_reversion,
+                                dev_net_early = dv.gap_early - dv.plc_gap_early,
+                                dev_net_reversion = dv.reversion - dv.plc_reversion))
         end
         push!(runs, row)
 
@@ -81,7 +86,9 @@ const SUMMARY_METRICS = [:price_final, :ci_final, :ci_first, :ci_peak_block, :ci
                          :deadweight_loss_final, :elevated_share_final, :elevated_share_all,
                          :longest_elevated_run, :persistent, :price_dispersion_final,
                          :all_equal_share_final, :synchrony_final, :sync_p,
-                         :dev_depth, :dev_reversion,
+                         :dev_gap_early, :dev_gap_late, :dev_reversion,
+                         :plc_gap_early, :plc_gap_late, :plc_reversion,
+                         :dev_net_early, :dev_net_reversion,
                          :profit_firm1, :profit_firm2, :profit_firm3]
 
 "Mean, sd and bootstrap 95% CI across replications, for every metric and population."
@@ -112,7 +119,7 @@ end
 
 const HEADLINE_METRICS = [:price_final, :ci_final, :elevated_share_final, :persistent,
                           :ci_reversion, :welfare_ratio_final, :ps_final, :cs_final,
-                          :all_equal_share_final, :dev_depth, :dev_reversion]
+                          :all_equal_share_final, :dev_gap_early, :plc_gap_early, :dev_reversion, :plc_reversion]
 
 # ---- Experiments 1-3 (also reused as controls for Experiment 4) -----------------------------
 function run_homogeneous_experiments(cfg::SimulationConfig)

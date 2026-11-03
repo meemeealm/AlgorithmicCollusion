@@ -4,6 +4,7 @@
 #   C. Q-learning: learning rate and discount factor
 #   D. longer horizon (3x) for Q-only and mixed populations (is Q-learning under-trained?)
 #   E. finer price grid (step 2.5) for the mixed population
+#   F. Q-learning exploration schedule (is the final-window price just exploration noise?)
 #
 #   julia --project=. experiments/sensitivity.jl
 
@@ -50,6 +51,13 @@ add!(long, mixed_population();          experiment = "exp5d_horizon", label = "1
 fine = SimulationConfig(params = MarketParams(p_step = 2.5), T = cfg.T, n_reps = cfg.n_reps, base_seed = cfg.base_seed)
 add!(fine, mixed_population(); experiment = "exp5e_grid", label = "1Q+1E+1R step=2.5")
 
+# F. exploration schedule: constant eps=0.05, and decay to exactly 0 (no exploration at the end)
+for (label, sched) in [("Q: eps constant 0.05", ConstantEpsilon(0.05)),
+                       ("Q: eps decays to 0",    LinearDecay(0.2, 0.0, cfg.T))]
+    add!(cfg, homogeneous_population(:q; q_kwargs = (schedule = sched,));
+         experiment = "exp5f_exploration", label = label)
+end
+
 all_runs = reduce((a, b) -> vcat(a, b; cols = :union), runs)
 all_traj = reduce((a, b) -> vcat(a, b; cols = :union), trajs)
 summary  = summarize_runs(all_runs)
@@ -58,5 +66,5 @@ write_csv("exp5_runs.csv", all_runs)
 write_csv("exp5_summary.csv", summary)
 write_csv("exp5_trajectories.csv", all_traj)
 print_summary(summary, [:price_final, :ci_final, :elevated_share_final, :persistent,
-                        :welfare_ratio_final, :all_equal_share_final, :dev_reversion])
+                        :welfare_ratio_final, :all_equal_share_final, :dev_net_early, :dev_net_reversion])
 println("\nNote: for the step=2.5 grid the elevated threshold and CI use that grid's own benchmarks.")

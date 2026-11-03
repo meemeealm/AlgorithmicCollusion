@@ -112,15 +112,19 @@ end
     @testset "deviation probe" begin
         hist = const_hist([55, 55, 55], 5)
         agents = AbstractAgent[FixedPriceAgent(ix(55)), MatchAgent(ix(55), 0), MatchAgent(ix(55), 0)]
-        r = deviation_probe(agents, Xoshiro(1), p, hist; horizon = 6)
+        r = deviation_probe(agents, Xoshiro(1), p, hist; horizon = 10)
         # rivals match the undercut from period 2 on and never recover
         @test r.possible
-        @test r.gap == [0.0, -5.0, -5.0, -5.0, -5.0, -5.0]
-        @test r.depth == -5 && r.depth_period == 2 && r.final_gap == -5 && r.reversion == 0
+        @test r.gap == vcat(0.0, fill(-5.0, 9))
+        @test r.gap_early == -5 && r.gap_late == -5 && r.reversion == 0
+        # no randomness in these agents, so the placebo is exactly zero
+        @test all(r.placebo_gap .== 0) && r.plc_gap_early == 0 && r.plc_reversion == 0
 
         floor_hist = const_hist([10, 10, 10], 5)
-        r0 = deviation_probe(agents, Xoshiro(1), p, floor_hist; horizon = 4)
-        @test !r0.possible && length(r0.gap) == 4 && all(isnan, r0.gap)
+        r0 = deviation_probe(agents, Xoshiro(1), p, floor_hist; horizon = 6)
+        @test !r0.possible && length(r0.gap) == 6 && all(isnan, r0.gap)
+        @test isnan(r0.gap_early) && isnan(r0.plc_reversion)
+        @test_throws ArgumentError deviation_probe(agents, Xoshiro(1), p, hist; horizon = 4)
     end
 
     @testset "metrics and probe on a real run" begin
@@ -131,8 +135,11 @@ end
         @test isfinite(m.price_final) && 0 <= m.elevated_share_final <= 1
         @test m.welfare_ratio_final <= 1 + 1e-9 && haskey(m, :profit_firm3)
         dv = deviation_probe(agents, rng, p, h; horizon = 5)
-        @test length(dv.gap) == 5
-        dv.possible && @test all(isfinite, dv.gap)
+        @test length(dv.gap) == 5 && length(dv.placebo_gap) == 5
+        if dv.possible
+            @test all(isfinite, dv.gap) && all(isfinite, dv.placebo_gap)
+            @test isfinite(dv.reversion) && isfinite(dv.plc_reversion)
+        end
         @test_throws ArgumentError run_metrics(h, p; window = 401)
     end
 end
